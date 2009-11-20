@@ -6,8 +6,8 @@ import sys
 foo = 1
 
 class MyConsole(code.InteractiveConsole):
-    def __init__(self, rfile, wfile, locals=None, filename="<console>"):
-        code.InteractiveConsole.__init__(self, locals, filename)
+    def __init__(self, rfile, wfile, filename="<console>"):
+        code.InteractiveConsole.__init__(self, None, filename)
         self.rfile = rfile
         self.wfile = wfile
 
@@ -38,8 +38,6 @@ class MyConsole(code.InteractiveConsole):
 
     def runcode(self, code):
         try:
-            # http://stackoverflow.com/questions/701802/how-do-i-execute-a-string-containing-python-code-in-python
-            context = self.locals if self.locals else globals()
             sys.stdout = self.wfile
             sys.stderr = self.wfile
             exec code in globals()
@@ -53,7 +51,7 @@ class MyConsole(code.InteractiveConsole):
             if self._softspace(self.wfile, 0):
                 print >>self.wfile
 
-class TCPRequestHandler(SocketServer.StreamRequestHandler):
+class MyTCPRequestHandler(SocketServer.StreamRequestHandler):
 
     def handle(self):
         self.wfile.flush()
@@ -61,7 +59,7 @@ class TCPRequestHandler(SocketServer.StreamRequestHandler):
         console.interact()
 
 
-class ForkingTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class MyTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
 
@@ -71,7 +69,7 @@ if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
     HOST, PORT = "0.0.0.0", 6669
 
-    server = ForkingTCPServer((HOST, PORT), TCPRequestHandler)
+    server = MyTCPServer((HOST, PORT), MyTCPRequestHandler)
     print "running on", server.server_address
 
     server.serve_forever()
