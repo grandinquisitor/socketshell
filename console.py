@@ -59,9 +59,16 @@ class MyTCPRequestHandler(SocketServer.StreamRequestHandler):
         console.interact()
 
 
-class MyTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    pass
+class ShellServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    def __init__(self, host, port):
+        SocketServer.TCPServer.__init__(self, (host, port), MyTCPRequestHandler)
 
+
+class AsyncShellServer(threading.Thread, ShellServer):
+    def __init__(self, host, port):
+        ShellServer.__init__(self, host, port)
+        threading.Thread.__init__(self, target=self.serve_forever)
+        self.setDaemon(True)
 
 
 
@@ -69,7 +76,7 @@ if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
     HOST, PORT = "0.0.0.0", 6669
 
-    server = MyTCPServer((HOST, PORT), MyTCPRequestHandler)
+    server = ShellServer(HOST, PORT)
     print "running on", server.server_address
 
     server.serve_forever()
