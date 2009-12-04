@@ -1,3 +1,7 @@
+"""
+command-line toy ShellServer
+"""
+
 import sys
 from optparse import OptionParser
 
