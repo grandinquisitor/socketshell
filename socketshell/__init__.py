@@ -22,14 +22,16 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>>
 
 AsyncShellServer runs in its own thread. ShellServer runs in the current thread.
+
+see console.py for a command-line toy server.
 """
 
 __version__ = 'DEV'
 
-import code
-import SocketServer
-import threading
 import sys
+import threading
+import SocketServer
+import code
 
 class _MyConsole(code.InteractiveConsole):
     def __init__(self, rfile, wfile, filename="<console>"):
@@ -162,7 +164,7 @@ class _MyTCPRequestHandler(SocketServer.StreamRequestHandler):
 
         except StopIteration:
             if self.logging:
-                print >>sys.stderr, "-- client", client_address_str, "exited"
+                print >>sys.stderr, "-- client", client_address_str, "closed"
         except SocketServer.socket.error, e:
             if self.logging:
                 print >>sys.stderr, "-- client", client_address_str, "disconnected"
@@ -179,7 +181,8 @@ class ShellServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     >>> s.serve_forever()
     """
 
-    def __init__(self, port, host='127.0.0.1', logging=True):
+    def __init__(self, host='127.0.0.1', port=None, logging=True):
+        if port is None: raise TypeError
         SocketServer.TCPServer.__init__(self, (host, port), _MyTCPRequestHandler.factoryfactory(logging=logging))
 
     def start(self):
@@ -201,62 +204,9 @@ class AsyncShellServer(threading.Thread, ShellServer):
     Set daemon=True on the constructor or call setDaemon(True) on the object to have the server thread exit when the main thread exits if inactive. See the documentation on threading.Thread, of which this class is a subclass.
     """
 
-    def __init__(self, port, host='127.0.0.1', logging=True, daemon=False):
+    def __init__(self, host='127.0.0.1', port=None, logging=True, daemon=None):
         ShellServer.__init__(self, port, host)
         threading.Thread.__init__(self, target=self.serve_forever)
-        if daemon:
-            self.setDaemon(True)
+        if daemon is not None:
+            self.setDaemon(daemon)
 
-
-
-if __name__ == "__main__":
-    from optparse import OptionParser
-    parser = OptionParser(
-        usage="%prog [options] port",
-        version="%%prog %s" % __version__,
-        add_help_option=False)
-
-    parser.add_option('--help', action='help', help='show this message')
-
-    parser.add_option('-q', 
-                    dest='quiet',
-                    help='suppress startup messages',
-                    action='store_true')
-
-    parser.add_option('-h', '--host',
-                    dest="hostname",
-                    default='127.0.0.1',
-                    help="hostname to bind to. use 0.0.0.0 for any.\n[default: %default]",
-                    metavar="HOST")
-
-    parser.add_option("-p", '--port', 
-                    dest="port",
-                    help="port to use. use 0 for self-assigned port [default].",
-                    type='int',
-                    default=0,
-                    metavar="PORT")
-
-    (flags, args) = parser.parse_args()
-
-    if args:
-        if len(args) > 1:
-            parser.error("unrecognized options: %r" % args)
-        elif flags.port and args:
-            parser.error("conflicting port settings: %r and %r" % (flags.port, args))
-        else:
-            try:
-                port = int(args[0])
-            except ValueError:
-                parser.error("invalid integer value: %r" % (args[0],))
-
-    else:
-        port = flags.port
-
-    host = flags.hostname
-
-    server = ShellServer(port, host, logging=not flags.quiet)
-
-    if not flags.quiet:
-        print >>sys.stderr, "running on", ':'.join(map(str, server.server_address))
-
-    server.start()
