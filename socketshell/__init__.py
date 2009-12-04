@@ -182,8 +182,14 @@ class ShellServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     """
 
     def __init__(self, host='127.0.0.1', port=None, logging=True):
+        """
+        port is required, host is optional. host defaults to localhost. if port == 0 it will choose an available port itself. the ultimate server address used is accessible at self.server_address .
+        """
+
         if port is None: raise TypeError
+
         SocketServer.TCPServer.__init__(self, (host, port), _MyTCPRequestHandler.factoryfactory(logging=logging))
+
 
     def start(self):
         self.serve_forever()
@@ -201,7 +207,9 @@ class AsyncShellServer(threading.Thread, ShellServer):
     >>> s.start()
     >>> 
 
-    Set daemon=True on the constructor or call setDaemon(True) on the object to have the server thread exit when the main thread exits if inactive. See the documentation on threading.Thread, of which this class is a subclass.
+    Set daemon=True on the constructor or call setDaemon(True) on the object 
+    to have the server thread exit when the main thread exits if inactive.
+    See the documentation on threading.Thread, of which this class is a subclass.
     """
 
     def __init__(self, host='127.0.0.1', port=None, logging=True, daemon=None):
@@ -209,4 +217,60 @@ class AsyncShellServer(threading.Thread, ShellServer):
         threading.Thread.__init__(self, target=self.serve_forever)
         if daemon is not None:
             self.setDaemon(daemon)
+
+
+def main():
+    from optparse import OptionParser
+
+    _prog_name = 'shellserver console'
+
+    parser = OptionParser(
+        usage="%prog [options] port",
+        version="%%prog (%s) %s" % (_prog_name, __version__),
+        add_help_option=False)
+
+    parser.add_option('--help', action='help', help='show this message')
+
+    parser.add_option('-q', 
+                    dest='quiet',
+                    help='suppress startup messages',
+                    action='store_true')
+
+    parser.add_option('-h', '--host',
+                    dest="hostname",
+                    default='127.0.0.1',
+                    help="hostname to bind to. use 0.0.0.0 for any.\n[default: %default]",
+                    metavar="HOST")
+
+    parser.add_option("-p", '--port', 
+                    dest="port",
+                    help="port to use. use 0 for self-assigned port [default].",
+                    type='int',
+                    default=0,
+                    metavar="PORT")
+
+    (flags, args) = parser.parse_args()
+
+    if args:
+        if len(args) > 1:
+            parser.error("unrecognized options: %r" % args)
+        elif flags.port and args:
+            parser.error("conflicting port settings: %r and %r" % (flags.port, args))
+        else:
+            try:
+                port = int(args[0])
+            except ValueError:
+                parser.error("invalid integer value: %r" % (args[0],))
+
+    else:
+        port = flags.port
+
+    host = flags.hostname
+
+    server = ShellServer(host, port, logging=not flags.quiet)
+
+    if not flags.quiet:
+        print >>sys.stderr, "running on", ':'.join(map(str, server.server_address))
+
+    server.start()
 
